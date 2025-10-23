@@ -2,6 +2,12 @@ package com.mkcompany.employee_managment_service.service;
 
 import com.mkcompany.employee_managment_service.entity.Employee;
 import com.mkcompany.employee_managment_service.exception.EmployeeDoesNotExistException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -9,9 +15,11 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class EmployeeService {
+@RequiredArgsConstructor
+public class EmployeeService implements UserDetailsService {
 
     private Map<String , Employee> employees;
+    private final PasswordEncoder passwordEncoder;
 
     public Employee createEmployee(String firstName ,String lastName ,String password){
 
@@ -37,19 +45,19 @@ public class EmployeeService {
         return employees.get(employeeEmail);
     }
 
-    public Employee updateEmployee(String email ,Employee updatedEmployee){
+    public Employee updateEmployee(String email ,Employee employee){
         if(!employees.containsKey(email)){
             throw new EmployeeDoesNotExistException("Employee to update does not exist!");
         }
 
         Employee presisted;
 
-        if(!email.equals(updatedEmployee.getEmail())){
+        if(!email.equals(employee.getEmail())){
             employees.remove(email);
-            employees.put(updatedEmployee.getEmail(), updatedEmployee);
-            presisted = employees.get(updatedEmployee.getEmail());
+            employees.put(employee.getEmail(), employee);
+            presisted = employees.get(employee.getEmail());
         }else{
-            presisted = employees.replace(email, updatedEmployee);
+            presisted = employees.replace(email, employee);
         }
 
         return presisted;
@@ -90,4 +98,17 @@ public class EmployeeService {
     }
 
 
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        try{
+            Employee employee = readEmployeeByEmail(username);
+            return User.builder()
+                    .username(employee.getEmail())
+                    .password(passwordEncoder.encode(employee.getPassword()))
+                    .build();
+
+        }catch (EmployeeDoesNotExistException e){
+            throw new UsernameNotFoundException("Employee Does not exist!");
+        }
+    }
 }
